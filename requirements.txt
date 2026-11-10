@@ -1,0 +1,4 @@
+pdfplumber
+pypdfium2
+Pillow
+pyinstaller
