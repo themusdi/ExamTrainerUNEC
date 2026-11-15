@@ -1,189 +1,149 @@
-<div align="center">
+# Exam Trainer 2.0
 
-# 🎓 ExamTrainer
+A desktop application (Python + Tkinter) that turns PDF files with multiple-choice questions into a
+complete study platform: exams in six modes, a PDF library, revision of mistakes, bookmarks and notes,
+history, statistics and exports.
 
-**A lightweight desktop exam simulator for UNEC students.**
-Load your question-bank PDF, pick any set of question numbers, and sit a randomised exam of *N* questions — with images, instant feedback and a full review.
+## Install and run (Windows)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)
-![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
-![GUI](https://img.shields.io/badge/GUI-Tkinter-informational)
+1. Install Python 3.9 or newer from python.org (tick **Add python.exe to PATH**).
+2. Double-click **`run.bat`** - the first start creates a private environment and installs the packages.
 
-</div>
+Manual alternative:
 
-> **UNEC-specific.** ExamTrainer is built around the test-bank PDF format used at UNEC (Azerbaijan State University of Economics): numbered questions, with every answer variant marked `•` (wrong) or `√` (correct).
-> This is an independent student project and is **not affiliated with or endorsed by UNEC**.
+    pip install -r requirements.txt
+    python main.py
 
----
+Requirements: `pdfplumber`, `pypdfium2`, `Pillow` (see `requirements.txt`). Everything else is the
+Python standard library (Tkinter, SQLite).
 
-## Table of contents
+## PDF format
 
-- [Features](#-features)
-- [Quick start (Windows `.exe`)](#-quick-start-windows-exe)
-- [Run from source](#-run-from-source)
-- [How to use](#-how-to-use)
-- [Supported PDF format](#-supported-pdf-format)
-- [Building the Windows executable](#-building-the-windows-executable)
-- [Project structure](#-project-structure)
-- [Notes & limitations](#-notes--limitations)
-- [Qısa izah (Azərbaycan dilində)](#-qısa-izah-azərbaycan-dilində)
-- [Author](#-author)
-- [License](#-license)
+    12. Question text ...
+    • a wrong variant
+    √ the correct variant
+    • another wrong variant
 
-## ✨ Features
+Each question starts with its number; each variant starts with `•` (wrong) or `√` (correct). Pictures and
+formulas inside questions or variants are supported. (This is the format of version 1 - the parser is unchanged.)
 
-| | |
+## Using the program
+
+Press **F1** inside the program for the guide. In short:
+
+| Page | What it does |
 |---|---|
-| 📄 **Any bank, one file** | Choose your question PDF at startup — no conversion step. |
-| 🔢 **Flexible selection** | `7` · `5-61` · `1,5-61,69,73-152` — single numbers, ranges, or any mix. Empty means *all*. |
-| 🎲 **Random N questions** | Enter a count (e.g. `30` or `50`); questions are drawn at random from your selection. |
-| 🖼️ **Image-aware** | Pictures in questions or variants (formulas, graphs, diagrams) are cropped from the PDF and shown as-is. Nothing is OCR'd or guessed. |
-| ✅ **Practice mode** | Optional instant right/wrong feedback after each answer. |
-| 🔀 **Shuffle variants** | Optionally randomise the order of A–E. |
-| 📊 **Detailed results** | Score, percentage, and a per-question review: correct answer in green, your wrong pick in red. |
-| 🔁 **Retry mistakes** | Re-take only the questions you got wrong or skipped. |
-| ⌨️ **Keyboard shortcuts** | `A`–`E` select an answer, `←` / `→` move between questions. |
-| ⚡ **Fast** | A 166-page, 700-question PDF is parsed in seconds; images are rendered lazily, only for the questions you actually see. |
+| Home | Resume an interrupted exam, quick numbers, recent PDFs |
+| New exam | Choose PDF, mode and mode settings, question numbers (`7`, `5-61`, `1,5-61,69`) |
+| Revision | Practise active mistakes / unanswered / marked / difficult questions |
+| PDF Library | Add, rename, categorise, re-read, re-locate, export and remove PDFs |
+| Bookmarks | Favourites, difficult questions and notes; start an exam from them |
+| History | Review any finished exam, export history as CSV |
+| Statistics | Totals, 7 / 30-day numbers, charts, per-PDF table, CSV export |
+| Settings | Theme, font size, defaults, fullscreen exams, backups |
 
-## 🚀 Quick start (Windows `.exe`)
+### Exam modes
 
-The Windows build is a **single `ExamTrainer.exe`**. You do **not** need to install Python, `pdfplumber`, `pypdfium2`, `Pillow` or any other package.
+* **Standard** - random questions, checked at the end.
+* **Timed** - standard with a time limit for the whole exam; it finishes by itself when time is up.
+* **Practice** - immediate right / wrong; the answer is then locked.
+* **Sequential** - the first N questions of the pool in their original order.
+* **Endless** - serves questions one after another without repeats until the pool is empty.
+* **Survival** - immediate feedback; ends when the lives (default 1) are used up.
 
-1. Download `ExamTrainer.exe` (see [Building the Windows executable](#-building-the-windows-executable) if you need to produce it yourself).
-2. Double-click it.
-3. Select your question PDF, enter the question numbers and count, and press **Start exam**.
+Every mode has its own configuration panel on the *New exam* page.
 
-> Windows SmartScreen may warn about an unsigned executable. Choose **More info → Run anyway** if you built it yourself or trust the source.
+### Keyboard
 
-## 🐍 Run from source
+| Key | Action |
+|---|---|
+| A-E / 1-5 | choose a variant (again = clear) |
+| Right / Enter, Left | next / previous question |
+| Home / End | first / last question |
+| M | mark for review |
+| S / X | favourite / difficult |
+| N | note |
+| O | overview grid |
+| Ctrl+Enter | finish exam |
+| F1 / F2 / F11 | guide / light-dark / fullscreen |
+| Ctrl + / Ctrl - | font size |
+| Esc | close dialog, leave fullscreen |
 
-Requires **Python 3.9+**. Tkinter ships with Python on Windows and macOS; on Debian/Ubuntu install it with `sudo apt install python3-tk`.
+## Revision rules
 
-```bash
-git clone https://github.com/themusdi/ExamTrainer.git
-cd ExamTrainer
-pip install -r requirements.txt
-python exam_app.py
-```
+* Wrong answer -> the question joins the **mistake list**, `times_wrong` +1.
+* No answer -> the question joins the **unanswered list**.
+* A correct answer in a **revision exam** (started from Revision, or "Retry wrong / unanswered") removes the
+  question from the mistake list. The counters (`times_wrong`, `times_correct`) are never reset.
+* A correct answer in a normal exam leaves the mistake list unchanged.
+* Questions marked with M during an exam are remembered and pre-marked next time.
 
-## 📝 How to use
+## Data and safety
 
-1. **PDF file** — click **Browse…** and choose your question bank. The app reports how many questions it found.
-2. **Which questions?** — type the numbers you want to practise, e.g. `1,5-61,69,73-152`. The pool size is shown live.
-3. **How many questions?** — enter `30`, `50`, … (or click **All from the pool**). *N* random questions are picked from the pool.
-4. *(Optional)* tick **Practice mode** and/or **Shuffle the variants**.
-5. Press **Start exam**, answer, then **Finish exam** to see your score and review.
+Everything is stored in one SQLite file in `%APPDATA%\ExamTrainer` (Linux/macOS: `~/.local/share/ExamTrainer`).
+Create an empty file `portable.flag` next to `main.py` to keep the data in `./data` instead, or set the
+environment variable `EXAM_TRAINER_DATA`.
 
-## 📑 Supported PDF format
+* **Migrations:** schema changes are numbered; a backup is written before each one.
+* **Backups:** automatic once a day, plus *Settings -> Back up now* (the last 15 are kept in `backups/`).
+* **Nothing is silently deleted:** removing a PDF from the library only hides it (file untouched, data kept and
+  restored when you add it again). Clearing history asks twice and makes a backup first.
+* **Changed PDFs:** questions are identified by a fingerprint of their content, not by their number. When a PDF
+  changes, notes / bookmarks / statistics follow their questions to the new numbers; data of questions that no
+  longer exist is kept hidden and restored if they come back.
+* **Crash recovery:** the running exam is saved continuously and can be resumed from the Home page.
+* **Version 1 settings** (`~/.exam_trainer.json`) are imported once; the old file is left alone.
 
-The parser expects the exact structure of the UNEC test-bank export:
+## Architecture (Stage 1 analysis of the original and the new layout)
 
-```text
-12. Text of the question ...
-    •  wrong variant
-    •  wrong variant
-    √  the one correct variant
-    •  wrong variant
-```
+The original was one file with three layers: parsing (`collect_items`, `group_questions`, `join_lines`,
+`parse_ranges`), data (`Bank` with lazy picture cropping, `Session`) and the Tk GUI. The parsing code is kept
+**verbatim** in `pdf_parser.py` (between the VERBATIM markers); everything else was separated:
 
-- Questions are numbered `1.`, `2.`, `3.` …
-- Each variant starts with `•` (wrong) or `√` (correct); exactly one `√` per question.
-- A question or a variant may contain an image.
-- The file is **not validated** — it is assumed to follow this format. Numbers requested but absent from the file are reported and skipped.
+    main.py              entry point
+    config.py            constants, data locations, default settings
+    database.py          SQLite: settings, library, question state, history, session snapshot, migrations
+    pdf_parser.py        original parser + fingerprints, hashing, parse cache, friendly errors
+    question_bank.py     Bank: lazy rendering (original), previews, JSON text, closes PDF handles
+    library.py           import / change detection / re-linking of saved data / bank cache
+    exam_engine.py       modes, Session, scoring, crash-recovery snapshots
+    exam_stats.py        statistics queries            (named exam_stats: "statistics" would shadow the stdlib module)
+    revision.py          mistake / unanswered / marked / difficult lists
+    export.py            PDF report (Pillow), CSV, JSON, clipboard text
+    tasks.py             background threads with safe delivery to the Tk thread
+    ui/                  app shell, theme, widgets, charts and one module per screen
+    tests/               automated tests (core + GUI smoke tests with a fake Tk)
 
-## 🛠️ Building the Windows executable
+Performance: PDFs are hashed and parsed in a worker thread with a progress bar and *Cancel*; the parse result is
+cached (gzip JSON keyed by file hash), so re-opening is instant. Pictures are cropped lazily per question;
+the PDF handle is released when a bank leaves the 3-entry cache.
 
-> This produces a **Windows `.exe`**. It does not run on macOS, Linux, Android or iOS — those platforms need their own build or a web version.
+## Tests
 
-### Option A — GitHub Actions (no local Python needed)
+    python -m unittest discover -s tests -v
 
-1. Create a GitHub repository and upload **all files and folders** of this project.
-2. Keep the workflow file at exactly this path:
-   `.github/workflows/build-windows.yml`
-3. Open the repository's **Actions** tab.
-4. Select **Build Windows EXE** and run it (or simply push to `main` / `master`).
-5. When the run finishes, open it and download the **`ExamTrainer-Windows`** artifact.
-6. Extract the ZIP — it contains `ExamTrainer.exe`.
+* `test_core.py` - real PDFs (generated with reportlab, `tests/make_sample_pdf.py`): parsing, markers, pictures,
+  cache, corrupt files, every mode, scoring, persistence across restart, revision rules, library (duplicates,
+  moved / changed / renumbered PDFs), statistics, CSV / JSON / PDF export, a 1 500-question bank.
+* `test_ui_smoke.py` - drives every screen (all modes, keys, notes, resume, results, history, statistics,
+  settings, both themes, fonts, fullscreen, help, resizing) through a fake Tk toolkit, so it runs without a display.
 
-### Option B — Build locally on Windows
+## Build a Windows .exe
 
-1. Install **Python 3.12** once.
-2. Double-click **`build.bat`** — it installs the build dependencies automatically.
-3. Your executable will be at `dist\ExamTrainer.exe`.
+Double-click `build.bat`, or:
 
-Under the hood this is simply:
+    pip install pyinstaller
+    pyinstaller --noconsole --onefile --name ExamTrainer --collect-all pdfplumber --collect-all pypdfium2 --collect-submodules pdfminer main.py
 
-```bash
-pip install -r requirements.txt pyinstaller
-pyinstaller --onefile --windowed --name ExamTrainer exam_app.py
-```
+The result is `dist\ExamTrainer.exe`. Data is still stored in `%APPDATA%\ExamTrainer`.
 
-## 📂 Project structure
+## Known limitations
 
-```text
-ExamTrainer/
-├── exam_app.py                      # the whole application (parser + GUI)
-├── requirements.txt                 # pdfplumber, pypdfium2, Pillow
-├── build.bat                        # one-click local Windows build
-├── .github/
-│   └── workflows/
-│       └── build-windows.yml        # CI: builds ExamTrainer.exe
-├── LICENSE                          # MIT
-└── README.md
-```
-
-## ⚠️ Notes & limitations
-
-- **Question banks are not included.** Test-bank PDFs may be copyrighted — bring your own file and do not commit it to the repository (`*.pdf` is git-ignored).
-- The app asks for the PDF every time it starts.
-- Questions that depend on a variant's *position* (e.g. "all of the above") can break if **Shuffle the variants** is on — it is off by default.
-- Scanned (image-only) PDFs without a text layer are not supported.
-- Unsigned executables may trigger Windows SmartScreen warnings.
-
-## 🇦🇿 Qısa izah (Azərbaycan dilində)
-
-**ExamTrainer** — UNEC tələbələri üçün hazırlanmış sadə imtahan məşq proqramıdır.
-
-1. Test bazası **PDF** faylını seçirsən (sual nömrələnməlidir; `•` — səhv, `√` — düzgün variant).
-2. Hansı sualların olacağını yazırsan: `7`, `5-61` və ya qarışıq `1,5-61,69,73-152`.
-3. Neçə sual istədiyini yazırsan (məs. `30` və ya `50`) — suallar həmin aralıqdan **təsadüfi** seçilir.
-4. İmtahanı həll edib nəticəni və səhvlərini görürsən; istəsən yalnız səhv suallarla yenidən başlaya bilərsən.
-
-Şəkilli suallar PDF-dən kəsilib olduğu kimi göstərilir. Windows üçün hazır **`ExamTrainer.exe`** Python quraşdırmadan işləyir (bax: [Building the Windows executable](#-building-the-windows-executable)).
-
-> Layihə UNEC ilə rəsmi əlaqəli deyil. Test bazası PDF-ləri repoya əlavə edilməməlidir.
-
-## 👤 Author
-
-**themusdi** · [GitHub](https://github.com/themusdi) · [Instagram](https://instagram.com/the.musdi)
-
-Issues and pull requests are welcome. If ExamTrainer helps you, a ⭐ on the repository is appreciated.
-
-## 📄 License
-
-Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for the full text.
-
-```text
-MIT License
-
-Copyright (c) 2026 themusdi
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
+* The GUI was verified with the fake-Tk smoke tests and the non-GUI code with real PDFs, but **not visually on a
+  real Windows screen** - please look through each page once and report layout problems.
+* The PDF report is drawn with Pillow: pictures and text are included, but glyphs missing from the system font
+  (rare maths symbols) may show as boxes. The exam screen itself is unaffected.
+* An exam uses the questions of one PDF; revision across several PDFs is listed, but practised one PDF at a time.
+* The JSON bank export contains text only; pictures are counted, not embedded.
+* If two questions have identical text and variants they share one fingerprint (and therefore one note / statistic).
+* "Smooth transitions" are limited to hover highlights; Tk has no animation support worth the complexity.

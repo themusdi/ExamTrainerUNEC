@@ -1,4 +1,3 @@
-pdfplumber
-pypdfium2
-Pillow
-pyinstaller
+pdfplumber>=0.10
+pypdfium2>=4.0
+Pillow>=10.1
